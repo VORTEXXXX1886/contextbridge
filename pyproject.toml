@@ -1,0 +1,20 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "contextbridge-cli"
+version = "0.2.0"
+description = "Private, portable project handoffs for AI coding assistants"
+readme = "README.md"
+requires-python = ">=3.10"
+license = {text = "MIT"}
+authors = [{name = "ContextBridge contributors"}]
+keywords = ["ai", "coding-agents", "context", "cli"]
+classifiers = ["Programming Language :: Python :: 3", "License :: OSI Approved :: MIT License"]
+
+[project.scripts]
+contextbridge = "contextbridge.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
