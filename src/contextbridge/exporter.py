@@ -57,7 +57,7 @@ def make_handoff(snapshot: dict, target: str = "generic", fmt: str = "markdown",
                 lines.append(f"- {kind}: {len(changes[kind])} files")
             lines.append("")
         lines.append("## Project file manifest (paths only)")
-        lines.extend(f"- \`{_safe_text(path).replace(chr(96), '')}\`" for path in paths)
+        lines.extend(f"- `{_safe_text(path).replace(chr(96), '')}`" for path in paths)
         result = "\n".join(lines) + "\n"
     if len(result) > max_chars:
         raise ValueError(f"Handoff exceeds {max_chars} characters; narrow project scope")
