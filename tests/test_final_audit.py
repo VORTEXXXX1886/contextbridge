@@ -18,7 +18,7 @@ class FinalAuditRegressionTests(unittest.TestCase):
         (self.root / "README.md").write_text("ok", encoding="utf-8")
 
     def test_exclusive_open_race_preserves_other_writer(self):
-        output = self.root / "out.md"
+        output = self.root.resolve() / "out.md"
         original_open = Path.open
 
         def race_open(path, *args, **kwargs):
