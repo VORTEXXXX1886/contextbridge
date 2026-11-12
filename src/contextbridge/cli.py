@@ -41,11 +41,15 @@ def _write_output(path: Path, content: str) -> None:
     if path.exists():
         raise ValueError("Output already exists; choose a new path to avoid overwriting")
     path.parent.mkdir(parents=True, exist_ok=True)
+    created = False
     try:
         with path.open("x", encoding="utf-8") as f:
+            created = True
             f.write(content)
     except Exception:
-        path.unlink(missing_ok=True)
+        # Never remove a file created by another writer between checks.
+        if created:
+            path.unlink(missing_ok=True)
         raise
 
 def main(argv: list[str] | None = None) -> int:
