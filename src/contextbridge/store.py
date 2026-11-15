@@ -30,7 +30,7 @@ def _validate_snapshot(data: Any) -> dict:
     for field in ("note", "next_task", "decisions"):
         if len(data[field]) > MAX_NOTE_CHARS:
             raise ValueError(f"Snapshot field is too long: {field}")
-    if "task_status" in data and data["task_status"] not in TASK_STATUSES:
+    if "task_status" in data and (not isinstance(data["task_status"], str) or data["task_status"] not in TASK_STATUSES):
         raise ValueError("Invalid task_status")
     if "next_steps" in data:
         steps = data["next_steps"]
