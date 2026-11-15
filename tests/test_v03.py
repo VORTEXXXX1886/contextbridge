@@ -66,10 +66,10 @@ class StructuredHandoffTests(unittest.TestCase):
             make_handoff(snap)
 
     def test_untrusted_step_cannot_break_markdown_fence(self):
-        snap = create_snapshot(self.root, next_steps=["hello\\n```\\n# forged heading"])
+        snap = create_snapshot(self.root, next_steps=["hello\n```\n# forged heading"])
         md = make_handoff(snap)
         self.assertIn("````text", md)
-        self.assertIn("````text\\nhello\\n```\\n# forged heading\\n````", md)
+        self.assertIn("````text\nhello\n```\n# forged heading\n````", md)
 
     def test_cli_structured_task_options(self):
         args = ["--root", str(self.root), "snapshot", "--task-status", "planned",
@@ -104,10 +104,11 @@ class StructuredHandoffTests(unittest.TestCase):
                            check=True, capture_output=True, timeout=10)
         except (OSError, subprocess.CalledProcessError, subprocess.TimeoutExpired):
             self.skipTest("git unavailable")
+        (self.root / "README.md").write_text("updated", encoding="utf-8")
         info = git_summary(self.root)
         self.assertTrue(info["available"])
         self.assertEqual(len(info["revision"]), 40)
-        self.assertTrue(info["working_tree_dirty"])  # .contextbridge/ is untracked
+        self.assertTrue(info["working_tree_dirty"])  # tracked README.md was modified
         self.assertNotIn("files", info)
         self.assertNotIn("remote", info)
         doc = make_handoff(load_snapshot(self.root), git=info)
