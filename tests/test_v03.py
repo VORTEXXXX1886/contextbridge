@@ -111,6 +111,7 @@ class StructuredHandoffTests(unittest.TestCase):
         self.assertTrue(info["working_tree_dirty"])  # tracked README.md was modified
         self.assertNotIn("files", info)
         self.assertNotIn("remote", info)
+        create_snapshot(self.root)
         doc = make_handoff(load_snapshot(self.root), git=info)
         self.assertIn("Git metadata (opt-in", doc)
 
