@@ -46,7 +46,7 @@ contextbridge --root /path/to/my-project export --strict
 
 **Important:** `snapshot` refreshes the file manifest while preserving note, task, or decisions fields you did not specify. Exported files will not overwrite existing files. Use a fresh output filename.
 
-## Structured task handoffs (v0.3 development)
+## Structured task handoffs (v0.3)
 
 Use explicit task statuses and bounded next steps when changing coding agents:
 
@@ -149,8 +149,8 @@ GitHub Actions is configured for Windows, macOS and Linux with Python 3.10 and 3
 
 ## Roadmap
 
-- v0.3 (in development): Structured task status/steps and opt-in minimal Git metadata.
-- v0.4: Opt-in project-instruction inclusion and finer-grained context selection.
+- v0.3: Structured task status/steps and opt-in minimal Git metadata (released).
+- v0.4 (planned): Opt-in project-instruction inclusion and finer-grained context selection.
 - Later: documented provider integrations only where supported, optional encryption and opt-in sync.
 
 ## Community
