@@ -6,6 +6,8 @@ import json
 import sys
 from pathlib import Path
 from .exporter import MAX_OUTPUT_CHARS, make_handoff
+from .gitmeta import git_summary
+from .store import TASK_STATUSES
 from .privacy import looks_sensitive
 from .scanner import scan
 from .store import compare_snapshot, create_snapshot, load_snapshot, snapshot_path
@@ -21,12 +23,16 @@ def build_parser() -> argparse.ArgumentParser:
     snap.add_argument("--note", default=None, help="Current status; omit to preserve previous value")
     snap.add_argument("--task", default=None, help="Next task; omit to preserve previous value")
     snap.add_argument("--decisions", default=None, help="Architectural decisions; omit to preserve previous value")
+    snap.add_argument("--task-status", choices=sorted(TASK_STATUSES), default=None, help="Explicit next-task status")
+    snap.add_argument("--next-step", action="append", default=None, help="Explicit next step (repeatable; replaces previous steps)")
+    snap.add_argument("--clear-next-steps", action="store_true", help="Clear the next-step list")
     exp = sub.add_parser("export", help="Print or save a portable handoff package")
     exp.add_argument("--target", choices=("generic", "codex", "claude"), default="generic")
     exp.add_argument("--format", choices=("markdown", "json"), default="markdown")
     exp.add_argument("--output", type=Path, help="Explicit output path; stdout otherwise")
     exp.add_argument("--max-chars", type=int, default=MAX_OUTPUT_CHARS)
     exp.add_argument("--strict", action="store_true", help="Refuse stale snapshots")
+    exp.add_argument("--git", action="store_true", help="Include optional metadata-only Git state (never diffs or paths)")
     check = sub.add_parser("check", help="Show changes since last snapshot")
     check.add_argument("--json", action="store_true")
     sub.add_parser("doctor", help="Check snapshot readiness and freshness")
@@ -71,7 +77,11 @@ def main(argv: list[str] | None = None) -> int:
                 print("\n".join(entry["path"] for entry in files))
                 print(f"{len(files)} files indexed", file=sys.stderr)
         elif args.command == "snapshot":
-            create_snapshot(root, note=args.note, task=args.task, decisions=args.decisions)
+            if args.clear_next_steps and args.next_step is not None:
+                raise ValueError("Choose --next-step or --clear-next-steps, not both")
+            steps = [] if args.clear_next_steps else args.next_step
+            create_snapshot(root, note=args.note, task=args.task, decisions=args.decisions,
+                            task_status=args.task_status, next_steps=steps)
             print("Snapshot saved locally")
         elif args.command in ("check", "doctor"):
             snapshot = load_snapshot(root)
@@ -84,8 +94,9 @@ def main(argv: list[str] | None = None) -> int:
                         print(f"{kind}: {', '.join(changes[kind]) if changes[kind] else '(none)'}")
                 return 1 if any(changes.values()) else 0
             stale = any(changes.values())
-            for key in ("note", "decisions", "next_task"):
-                if looks_sensitive(snapshot[key]):
+            for key in ("note", "decisions", "next_task", "next_steps"):
+                value = snapshot.get(key, [] if key == "next_steps" else "")
+                if looks_sensitive("\n".join(value) if isinstance(value, list) else value):
                     print(f"WARNING: possible secret in {key}")
             print(f"Snapshot: {'STALE' if stale else 'CURRENT'}")
             print(f"Files: {len(snapshot['files'])}; next task: {'set' if snapshot['next_task'] else 'missing'}")
@@ -96,7 +107,8 @@ def main(argv: list[str] | None = None) -> int:
             if args.strict and any(changes.values()):
                 raise ValueError("Snapshot stale; run 'contextbridge snapshot' first")
             content = make_handoff(snapshot, target=args.target, fmt=args.format,
-                                   max_chars=args.max_chars, changes=changes)
+                                   max_chars=args.max_chars, changes=changes,
+                                   git=git_summary(root) if args.git else None)
             if args.output:
                 _write_output(args.output, content)
                 print(f"Saved {args.output.expanduser().absolute()}")
