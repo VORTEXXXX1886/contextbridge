@@ -27,7 +27,8 @@ def _markdown_label(value: str) -> str:
 
 
 def make_handoff(snapshot: dict, target: str = "generic", fmt: str = "markdown",
-                 max_chars: int = MAX_OUTPUT_CHARS, changes: dict | None = None) -> str:
+                 max_chars: int = MAX_OUTPUT_CHARS, changes: dict | None = None,
+                 git: dict | None = None) -> str:
     _validate_snapshot(snapshot)
     if target not in ALLOWED_TARGETS:
         raise ValueError("Unknown target")
@@ -38,6 +39,21 @@ def make_handoff(snapshot: dict, target: str = "generic", fmt: str = "markdown",
     for key in ("note", "next_task", "decisions", "project_name"):
         if looks_sensitive(snapshot[key]):
             raise ValueError(f"Potential secret detected in {key}; remove it before exporting")
+    for step in snapshot.get("next_steps", []):
+        if looks_sensitive(step):
+            raise ValueError("Potential secret detected in next_steps; remove it before exporting")
+    if git is not None:
+        if not isinstance(git, dict) or set(git) not in ({"available"}, {"available", "revision", "branch", "working_tree_dirty"}):
+            raise ValueError("Invalid Git metadata")
+        if type(git.get("available")) is not bool:
+            raise ValueError("Invalid Git metadata")
+        if git["available"]:
+            rev, branch, dirty = git["revision"], git["branch"], git["working_tree_dirty"]
+            if (not isinstance(rev, str) or len(rev) != 40
+                    or any(c not in "0123456789abcdef" for c in rev)
+                    or (branch is not None and (not isinstance(branch, str) or len(branch) > 200 or looks_sensitive(branch)))
+                    or type(dirty) is not bool):
+                raise ValueError("Invalid Git metadata")
     for entry in snapshot["files"]:
         if looks_sensitive(entry["path"]):
             raise ValueError("A file path appears to contain a secret; review your project")
@@ -48,9 +64,13 @@ def make_handoff(snapshot: dict, target: str = "generic", fmt: str = "markdown",
         "created_at": snapshot["created_at"], "freshness": status,
         "note": snapshot["note"], "decisions": snapshot["decisions"],
         "next_task": snapshot["next_task"], "files": paths,
+        "task_status": snapshot.get("task_status", "unspecified"),
+        "next_steps": snapshot.get("next_steps", []),
     }
     if changes is not None:
         record["changes_since_snapshot"] = changes
+    if git is not None:
+        record["git"] = git
     if fmt == "json":
         result = json.dumps(record, ensure_ascii=False, indent=2) + "\n"
     else:
@@ -63,11 +83,23 @@ def make_handoff(snapshot: dict, target: str = "generic", fmt: str = "markdown",
             "## Current status", *_fenced(record["note"]), "",
             "## Architectural decisions", *_fenced(record["decisions"]), "",
             "## Next task (requires independent authorization)", *_fenced(record["next_task"]), "",
+            f"Task status: {record['task_status']}", "",
+            "## Next steps (user-supplied, not authorized commands)",
+            *([line for step in record["next_steps"] for line in _fenced(step) + [""]] or ["Not provided", ""]),
         ]
         if changes is not None:
             lines.extend(["## Changes since snapshot"])
             for kind in ("added", "removed", "modified"):
                 lines.append(f"- {kind}: {len(changes[kind])} files")
+            lines.append("")
+        if git is not None:
+            lines.append("## Git metadata (opt-in; independently verify)")
+            if git["available"]:
+                lines.extend([f"- Revision: {git['revision']}",
+                              f"- Branch: {_markdown_label(git['branch']) if git['branch'] else '(detached or omitted)'}",
+                              f"- Working tree dirty: {git['working_tree_dirty']}"])
+            else:
+                lines.append("Git metadata unavailable for this project root")
             lines.append("")
         lines.append("## Project file manifest (paths only)")
         lines.extend(f"- {_markdown_label(path)}" for path in paths)
