@@ -46,6 +46,35 @@ contextbridge --root /path/to/my-project export --strict
 
 **Important:** `snapshot` refreshes the file manifest while preserving note, task, or decisions fields you did not specify. Exported files will not overwrite existing files. Use a fresh output filename.
 
+## Structured task handoffs (v0.3 development)
+
+Use explicit task statuses and bounded next steps when changing coding agents:
+
+```bash
+contextbridge snapshot --task "Fix CLI edge cases" --task-status in_progress --next-step "Run unit tests" --next-step "Review diff"
+contextbridge export --target codex --strict --output handoff-codex.md
+```
+
+Statuses: `planned`, `in_progress`, `blocked`, `done`. Omitted
+`--task-status` and `--next-step` preserve previously recorded fields.
+Use `contextbridge snapshot --clear-next-steps` to clear the next-step list.
+Old v0.2 snapshots remain readable; recording a fresh snapshot adds the
+optional structured fields. Task steps are untrusted context, not permission
+to execute commands.
+
+To include minimal **opt-in** Git context, append `--git` to `export`:
+
+```bash
+contextbridge export --target claude --git --output handoff-with-git.md
+```
+
+Git metadata includes only the commit hash, branch name (when safe) and
+whether the working tree has changes. It never includes file diffs, remote URLs,
+commit messages or Git file paths. If Git is unavailable or the project
+is not a repository root, the result reports metadata unavailable.
+The Git summary is a live observation, not a security attestation; review
+all handoffs before sharing.
+
 ## End-to-end agent handoff walkthrough
 
 See [the reproducible Codex-to-Claude Code walkthrough](examples/agent-handoff-walkthrough.md) for a disposable sample project, verified status notes, freshness checks, review-before-sharing guidance, and the exact limitations of what is transferred. It is an illustrative procedure, not a claim of independent user adoption.
@@ -82,7 +111,8 @@ This is an illustrative example. The CLI deliberately exports **paths, hashes in
 | Feature | Benefit |
 |---|---|
 | Local project scan | Metadata-only file inventory, with size limits |
-| `snapshot` | Records user-authored progress, decisions and next task |
+| `snapshot` | Records structured task status, next steps, decisions and project progress |
+| `export --git` | Optional minimal Git metadata, without diffs or Git filenames |
 | `check --json` | Detects added, removed and modified files |
 | `doctor` | Reports staleness and potentially sensitive notes |
 | `export` | Produces Markdown or JSON for Codex, Claude or generic assistants |
@@ -119,8 +149,8 @@ GitHub Actions is configured for Windows, macOS and Linux with Python 3.10 and 3
 
 ## Roadmap
 
-- v0.3: Explicit, reviewable project-instruction inclusion and structured task records.
-- v0.4: Git-aware metadata summaries and opt-in context selection.
+- v0.3 (in development): Structured task status/steps and opt-in minimal Git metadata.
+- v0.4: Opt-in project-instruction inclusion and finer-grained context selection.
 - Later: documented provider integrations only where supported, optional encryption and opt-in sync.
 
 ## Community

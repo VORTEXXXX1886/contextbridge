@@ -6,7 +6,8 @@ ContextBridge computes hashes locally and exports metadata, not source code. Its
 - No automatic data uploads or project-code execution.
 - Symlinked files and common credential names are skipped during scanning.
 - File count, file size, snapshot size, and handoff output are bounded.
-- Generated handoffs are untrusted context, never tool permissions.
+- Generated handoffs, including task steps, are untrusted context, never tool permissions.
+- Optional Git metadata includes only HEAD revision, branch and a working-tree dirty flag. It excludes diffs, remotes, messages and file paths, but branch names may still reveal sensitive information.
 - Users must have authorization to scan any directory.
 
 ## Known limitations
