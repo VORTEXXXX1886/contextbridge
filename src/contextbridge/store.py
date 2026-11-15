@@ -14,6 +14,9 @@ STATE_FILE = "snapshot.json"
 MAX_NOTE_CHARS = 10_000
 MAX_SNAPSHOT_BYTES = 2_000_000
 MAX_MANIFEST_ENTRIES = 3000
+MAX_NEXT_STEPS = 8
+MAX_STEP_CHARS = 500
+TASK_STATUSES = frozenset({"planned", "in_progress", "blocked", "done"})
 
 def snapshot_path(root: Path) -> Path:
     return root / STATE_DIR / STATE_FILE
@@ -27,6 +30,13 @@ def _validate_snapshot(data: Any) -> dict:
     for field in ("note", "next_task", "decisions"):
         if len(data[field]) > MAX_NOTE_CHARS:
             raise ValueError(f"Snapshot field is too long: {field}")
+    if "task_status" in data and data["task_status"] not in TASK_STATUSES:
+        raise ValueError("Invalid task_status")
+    if "next_steps" in data:
+        steps = data["next_steps"]
+        if (not isinstance(steps, list) or len(steps) > MAX_NEXT_STEPS
+                or any(not isinstance(x, str) or not x.strip() or len(x) > MAX_STEP_CHARS for x in steps)):
+            raise ValueError("Invalid next_steps")
     files = data.get("files")
     if not isinstance(files, list) or len(files) > MAX_MANIFEST_ENTRIES:
         raise ValueError("Invalid file manifest")
@@ -59,7 +69,8 @@ def load_snapshot(root: Path) -> dict:
     return _validate_snapshot(content)
 
 def create_snapshot(root: Path, *, note: str | None = None, task: str | None = None,
-                    decisions: str | None = None) -> dict:
+                    decisions: str | None = None, task_status: str | None = None,
+                    next_steps: list[str] | None = None) -> dict:
     root = root.expanduser().resolve(strict=True)
     if not root.is_dir():
         raise ValueError("Project root must be a directory")
@@ -78,6 +89,13 @@ def create_snapshot(root: Path, *, note: str | None = None, task: str | None = N
             entries[key] = previous.get(key, "")
         elif len(value) > MAX_NOTE_CHARS:
             raise ValueError(f"{key} exceeds size limit")
+    status = task_status if task_status is not None else previous.get("task_status", "planned")
+    steps = next_steps if next_steps is not None else previous.get("next_steps", [])
+    if status not in TASK_STATUSES:
+        raise ValueError("Invalid task_status")
+    if (not isinstance(steps, list) or len(steps) > MAX_NEXT_STEPS
+            or any(not isinstance(x, str) or not x.strip() or len(x) > MAX_STEP_CHARS for x in steps)):
+        raise ValueError("Invalid next_steps")
     data = {
         "schema_version": 1,
         "created_at": datetime.now(timezone.utc).isoformat(),
@@ -85,6 +103,8 @@ def create_snapshot(root: Path, *, note: str | None = None, task: str | None = N
         "note": entries["note"],
         "next_task": entries["next_task"],
         "decisions": entries["decisions"],
+        "task_status": status,
+        "next_steps": steps,
         "files": scan(root),
     }
     state.mkdir(exist_ok=True)
