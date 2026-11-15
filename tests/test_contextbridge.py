@@ -52,6 +52,28 @@ class ContextBridgeTests(unittest.TestCase):
         self.assertIn("Keep offline", make_handoff(snap, target="claude"))
         self.assertEqual(json.loads(make_handoff(snap, fmt="json"))["files"], ["README.md"])
 
+    def test_codex_to_claude_handoff_preserves_explicit_context(self):
+        snap = create_snapshot(self.root, note="Ready for review", task="Add a unittest",
+                               decisions="Python standard library only")
+        codex = json.loads(make_handoff(snap, target="codex", fmt="json"))
+        claude = json.loads(make_handoff(snap, target="claude", fmt="json"))
+        self.assertEqual(codex["target"], "codex")
+        self.assertEqual(claude["target"], "claude")
+        for data in (codex, claude):
+            self.assertEqual(data["note"], "Ready for review")
+            self.assertEqual(data["next_task"], "Add a unittest")
+            self.assertEqual(data["decisions"], "Python standard library only")
+            self.assertEqual(data["files"], ["README.md"])
+            self.assertNotIn("hello", json.dumps(data))
+
+    def test_handoff_explicitly_rejects_implicit_authorization(self):
+        snap = create_snapshot(self.root, task="Modify app.py")
+        for target in ("codex", "claude"):
+            markdown = make_handoff(snap, target=target)
+            self.assertIn("UNTRUSTED CONTEXT", markdown)
+            self.assertIn("no tool permissions or approval are granted", markdown)
+            self.assertIn("requires independent authorization", markdown)
+
     def test_export_blocks_secrets(self):
         snap = create_snapshot(self.root, note="api_key=12345678901234567890")
         with self.assertRaises(ValueError):

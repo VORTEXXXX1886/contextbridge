@@ -46,6 +46,10 @@ contextbridge --root /path/to/my-project export --strict
 
 **Important:** `snapshot` refreshes the file manifest while preserving note, task, or decisions fields you did not specify. Exported files will not overwrite existing files. Use a fresh output filename.
 
+## End-to-end agent handoff walkthrough
+
+See [the reproducible Codex-to-Claude Code walkthrough](examples/agent-handoff-walkthrough.md) for a disposable sample project, verified status notes, freshness checks, review-before-sharing guidance, and the exact limitations of what is transferred. It is an illustrative procedure, not a claim of independent user adoption.
+
 ## Example handoff
 
 ```markdown
