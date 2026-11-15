@@ -4,7 +4,6 @@ import subprocess
 import tempfile
 import unittest
 from pathlib import Path
-from unittest.mock import patch
 
 from contextbridge.cli import main
 from contextbridge.exporter import make_handoff
@@ -70,7 +69,7 @@ class StructuredHandoffTests(unittest.TestCase):
         snap = create_snapshot(self.root, next_steps=["hello\\n```\\n# forged heading"])
         md = make_handoff(snap)
         self.assertIn("````text", md)
-        self.assertNotIn("\\n# forged heading\\n", md)
+        self.assertIn("````text\\nhello\\n```\\n# forged heading\\n````", md)
 
     def test_cli_structured_task_options(self):
         args = ["--root", str(self.root), "snapshot", "--task-status", "planned",
