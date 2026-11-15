@@ -92,6 +92,46 @@ class StructuredHandoffTests(unittest.TestCase):
             make_handoff(snap, git={"available": True, "revision": "x",
                                     "branch": "main", "working_tree_dirty": False})
 
+    def test_git_rejects_parent_repo_metadata(self):
+        from unittest.mock import patch
+        with patch("contextbridge.gitmeta._git", return_value=str(self.root.parent)):
+            self.assertEqual(git_summary(self.root), {"available": False})
+
+    def test_git_sensitive_branch_is_omitted(self):
+        from unittest.mock import patch
+        answers = iter([
+            str(self.root.resolve()),
+            "a" * 40,
+            "api_key=12345678901234567890",
+            " M README.md",
+        ])
+        with patch("contextbridge.gitmeta._git", side_effect=lambda *_: next(answers)):
+            info = git_summary(self.root)
+        self.assertTrue(info["available"])
+        self.assertIsNone(info["branch"])
+        self.assertTrue(info["working_tree_dirty"])
+        exported = make_handoff(create_snapshot(self.root), git=info)
+        self.assertNotIn("12345678901234567890", exported)
+
+    def test_cli_export_git_opt_in_without_repository(self):
+        import io
+        from contextlib import redirect_stdout
+        create_snapshot(self.root)
+        output = io.StringIO()
+        with redirect_stdout(output):
+            result = main(["--root", str(self.root), "export", "--git",
+                           "--format", "json"])
+        self.assertEqual(result, 0)
+        doc = json.loads(output.getvalue())
+        self.assertEqual(doc["git"], {"available": False})
+
+    def test_task_records_validate_nonstring_status(self):
+        snap = create_snapshot(self.root)
+        for bad_status in ([], {}, 4, True):
+            with self.subTest(bad_status=bad_status):
+                with self.assertRaises(ValueError):
+                    _validate_snapshot(dict(snap, task_status=bad_status))
+
     def test_git_summary_nonrepo_and_real_repo_if_available(self):
         self.assertEqual(git_summary(self.root), {"available": False})
         try:
